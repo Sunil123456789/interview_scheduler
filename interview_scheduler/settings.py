@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Third-party
+    'corsheaders',
     'rest_framework',
     # Local apps
     'accounts',
@@ -45,6 +46,9 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # corsheaders must be placed as high as possible
+    'corsheaders.middleware.CorsMiddleware',
+
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -78,6 +82,11 @@ WSGI_APPLICATION = 'interview_scheduler.wsgi.application'
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 # logging configuration for debugging
+# CORS configuration for development frontend
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+]
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
