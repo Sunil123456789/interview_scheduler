@@ -1,11 +1,8 @@
-import logging
 import random
 from accounts.models import AOM, Candidate
 from scheduler.models import Interview
 from .slot_finder import find_common_slot
 from .google_calendar import create_calendar_event
-
-logger = logging.getLogger(__name__)
 
 
 def pick_aoms(candidate: Candidate):
@@ -37,7 +34,6 @@ def schedule_interview(candidate_id: int) -> Interview:
 
     try:
         same_aom, diff_aom = pick_aoms(candidate)
-        logger.info("Picked AOMs %s (same) and %s (different) for candidate %s", same_aom, diff_aom, candidate)
         interview.same_area_aom = same_aom
         interview.diff_area_aom = diff_aom
 

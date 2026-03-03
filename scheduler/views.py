@@ -1,8 +1,5 @@
 # Create your views here.
-import logging
 from rest_framework.views import APIView
-
-logger = logging.getLogger(__name__)
 from rest_framework.response import Response
 from rest_framework import status
 from accounts.models import Candidate
@@ -21,11 +18,9 @@ class ScheduleInterviewView(APIView):
             return Response({'error': 'candidate_id required'}, status=400)
 
         if not Candidate.objects.filter(id=candidate_id).exists():
-            logger.warning("Schedule requested with unknown candidate id %s", candidate_id)
             return Response({'error': 'Candidate not found'}, status=404)
 
         task = schedule_interview_task.delay(candidate_id)
-        logger.info("Scheduling task enqueued %s for candidate %s", task.id, candidate_id)
         return Response({
             'message': 'Scheduling started',
             'task_id': task.id
