@@ -77,8 +77,6 @@ WSGI_APPLICATION = 'interview_scheduler.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-
 # logging configuration for debugging
 LOGGING = {
     'version': 1,
