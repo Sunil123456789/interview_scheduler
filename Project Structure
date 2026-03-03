@@ -16,3 +16,13 @@ interview_scheduler/
 │   │   └── interview_booker.py  # Orchestrator
 │   ├── tasks.py           # Celery async tasks
 │   └── urls.py
+frontend/
+├── src/
+│   ├── api/         (client.ts - API communication)
+│   ├── pages/       (Dashboard, Schedule, Status, Admin)
+│   ├── App.tsx      (Router & Navigation)
+│   ├── index.css    (Tailwind styles)
+│   └── main.tsx
+├── vite.config.ts   (Proxy to backend)
+├── tailwind.config.js
+└── package.json
