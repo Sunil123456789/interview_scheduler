@@ -1,0 +1,18 @@
+interview_scheduler/
+├── manage.py
+├── requirements.txt
+├── interview_scheduler/
+│   ├── settings.py
+│   └── urls.py
+├── accounts/
+│   ├── models.py          # AOM, Candidate models
+│   └── admin.py
+├── scheduler/
+│   ├── models.py          # Interview model
+│   ├── views.py           # Booking logic
+│   ├── services/
+│   │   ├── google_calendar.py   # Calendar API
+│   │   ├── slot_finder.py       # Common slot logic
+│   │   └── interview_booker.py  # Orchestrator
+│   ├── tasks.py           # Celery async tasks
+│   └── urls.py
