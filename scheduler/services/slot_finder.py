@@ -1,7 +1,10 @@
 import datetime
+import logging
 from typing import Optional
 from accounts.models import AOM
 from .google_calendar import get_busy_slots
+
+logger = logging.getLogger(__name__)
 
 INTERVIEW_DURATION = datetime.timedelta(hours=1)
 WORK_START_HOUR = 9   # 9 AM UTC
@@ -29,6 +32,7 @@ def find_common_slot(
     """
     if search_from is None:
         search_from = datetime.datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+    logger.info("Searching for common slot between %s and %s starting %s", aom1, aom2, search_from)
 
     time_max = search_from + datetime.timedelta(days=SEARCH_DAYS)
 

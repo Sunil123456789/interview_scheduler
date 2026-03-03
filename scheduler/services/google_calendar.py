@@ -1,8 +1,11 @@
 import datetime
+import logging
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from accounts.models import AOM
+
+logger = logging.getLogger(__name__)
 
 
 def get_credentials(aom: AOM) -> Credentials:
@@ -15,6 +18,7 @@ def get_credentials(aom: AOM) -> Credentials:
         client_secret='YOUR_CLIENT_SECRET',
     )
     if creds.expired and creds.refresh_token:
+        logger.info("Refreshing credentials for %s", aom)
         creds.refresh(Request())
         # Save refreshed token
         aom.google_access_token = creds.token
@@ -38,6 +42,7 @@ def get_busy_slots(aom: AOM, time_min: datetime.datetime, time_max: datetime.dat
     }
     result = service.freebusy().query(body=body).execute()
     busy_list = result['calendars'][aom.google_calendar_id]['busy']
+    logger.debug("Busy slots for %s between %s and %s: %s", aom, time_min, time_max, busy_list)
 
     return [
         {
@@ -82,6 +87,7 @@ def create_calendar_event(
         },
     }
 
+    logger.info("Creating calendar event for %s and %s at %s", aom1, aom2, start)
     created = service.events().insert(
         calendarId='primary',
         body=event,
