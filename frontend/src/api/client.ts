@@ -17,4 +17,8 @@ export const getInterviewStatus = (interviewId: number) => {
   return api.get(`/interviews/${interviewId}/`);
 };
 
+export const getAllInterviews = () => {
+  return api.get('/interviews/');
+};
+
 export default api;

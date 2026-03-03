@@ -1,10 +1,36 @@
 # Create your views here.
+import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from accounts.models import Candidate
 from .tasks import schedule_interview_task
 from .models import Interview
+
+logger = logging.getLogger(__name__)
+
+
+class InterviewsListView(APIView):
+    """GET /api/interviews/"""
+    def get(self, request):
+        logger.info("Fetching all interviews")
+        interviews = Interview.objects.all().order_by('-created_at')
+        data = [
+            {
+                'id': interview.id,
+                'candidate': interview.candidate.name,
+                'status': interview.status,
+                'scheduled_start': interview.scheduled_start,
+                'scheduled_end': interview.scheduled_end,
+                'meet_link': interview.meet_link,
+                'same_area_aom': str(interview.same_area_aom) if interview.same_area_aom else None,
+                'diff_area_aom': str(interview.diff_area_aom) if interview.diff_area_aom else None,
+                'failure_reason': interview.failure_reason,
+                'created_at': interview.created_at,
+            }
+            for interview in interviews
+        ]
+        return Response({'interviews': data, 'count': len(data)})
 
 
 class ScheduleInterviewView(APIView):

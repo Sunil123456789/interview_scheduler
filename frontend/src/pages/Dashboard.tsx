@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Clock, CheckCircle, AlertCircle, Loader } from 'lucide-react';
-import api from '../api/client';
+import { getAllInterviews } from '../api/client';
 
 interface Interview {
   id: number;
@@ -22,10 +22,9 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchInterviews = async () => {
       try {
-        // Note: This endpoint needs to be implemented in the Django backend
-        // For now, we'll show an empty state with instructions
+        const response = await getAllInterviews();
+        setInterviews(response.data.interviews || []);
         setError(null);
-        setInterviews([]);
       } catch (err: any) {
         console.error('Failed to fetch interviews:', err);
         setError(err.response?.data?.error || 'Failed to load interviews');
