@@ -5,6 +5,7 @@ google-auth
 google-auth-oauthlib
 google-api-python-client
 djangorestframework
+djangorestframework-simplejwt
 python-decouple
 django-cors-headers
 django-import-export

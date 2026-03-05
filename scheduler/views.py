@@ -3,16 +3,20 @@ import logging
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from accounts.models import Candidate, Area, AOM
 from .tasks import schedule_interview_task
 from .models import Interview
 from django.db.models import Count, Q
+from .permissions import IsHRAdmin
 
 logger = logging.getLogger(__name__)
 
 
 class InterviewsListView(APIView):
     """GET /api/interviews/"""
+    permission_classes = [IsAuthenticated]
+
     def get(self, request):
         logger.info("Fetching all interviews")
         interviews = Interview.objects.all().order_by('-created_at')
@@ -39,6 +43,8 @@ class ScheduleInterviewView(APIView):
     POST /api/schedule-interview/
     Body: {"candidate_id": 123}
     """
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         candidate_id = request.data.get('candidate_id')
         if not candidate_id:
@@ -56,6 +62,8 @@ class ScheduleInterviewView(APIView):
 
 class InterviewStatusView(APIView):
     """GET /api/interviews/<id>/"""
+    permission_classes = [IsAuthenticated]
+
     def get(self, request, pk):
         try:
             interview = Interview.objects.get(pk=pk)
@@ -76,6 +84,8 @@ class InterviewStatusView(APIView):
 
 class AreasListCreateView(APIView):
     """GET/POST /api/areas/"""
+    permission_classes = [IsHRAdmin]
+
     def get(self, request):
         logger.info("Fetching all areas")
         areas = Area.objects.all()
@@ -105,6 +115,8 @@ class AreasListCreateView(APIView):
 
 class AOmsListCreateView(APIView):
     """GET/POST /api/aoms/"""
+    permission_classes = [IsHRAdmin]
+
     def get(self, request):
         logger.info("Fetching all AOMs")
         aoms = AOM.objects.all()
@@ -163,6 +175,8 @@ class AOmsListCreateView(APIView):
 
 class CandidatesListCreateView(APIView):
     """GET/POST /api/candidates/"""
+    permission_classes = [IsHRAdmin]
+
     def get(self, request):
         logger.info("Fetching all candidates")
         candidates = Candidate.objects.all()
@@ -209,6 +223,8 @@ class CandidatesListCreateView(APIView):
 
 class AnalyticsView(APIView):
     """GET /api/analytics/"""
+    permission_classes = [IsHRAdmin]
+
     def get(self, request):
         logger.info("Fetching analytics")
         total_candidates = Candidate.objects.count()

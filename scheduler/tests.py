@@ -193,6 +193,14 @@ class APITests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.area = Area.objects.create(name="Central")
+        self.user = AOM.objects.create_user(
+            username="api_user",
+            password="pass1234",
+            email="api_user@example.com",
+            area=self.area,
+            is_active=True,
+        )
+        self.client.force_authenticate(user=self.user)
         self.candidate = Candidate.objects.create(
             name="John",
             email="john@example.com",
@@ -235,3 +243,198 @@ class APITests(TestCase):
         url = "/api/interviews/999/"
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
+
+    def test_schedule_endpoint_requires_authentication(self):
+        client = APIClient()
+        response = client.post("/api/schedule-interview/", {"candidate_id": self.candidate.id}, format="json")
+        self.assertEqual(response.status_code, 401)
+
+
+class AdminFeatureAPITests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.area_1 = Area.objects.create(name="North")
+        self.area_2 = Area.objects.create(name="South")
+
+        self.hr_user = AOM.objects.create_user(
+            username="hr_admin",
+            password="pass1234",
+            area=self.area_1,
+            email="hr@example.com",
+            is_staff=True,
+            is_active=True,
+        )
+        self.client.force_authenticate(user=self.hr_user)
+
+        self.aom_1 = AOM.objects.create_user(
+            username="north_manager",
+            password="pass1234",
+            area=self.area_1,
+            email="north@example.com",
+            first_name="North",
+            last_name="Manager",
+            is_active=True,
+        )
+        self.aom_2 = AOM.objects.create_user(
+            username="south_manager",
+            password="pass1234",
+            area=self.area_2,
+            email="south@example.com",
+            first_name="South",
+            last_name="Manager",
+            is_active=True,
+        )
+
+        self.candidate = Candidate.objects.create(
+            name="Candidate One",
+            email="candidate1@example.com",
+            area=self.area_1,
+        )
+
+    def test_interviews_list_endpoint_returns_count(self):
+        Interview.objects.create(candidate=self.candidate, status="pending")
+        url = "/api/interviews/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["interviews"][0]["candidate"], self.candidate.name)
+
+    def test_areas_get_endpoint(self):
+        url = "/api/areas/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 2)
+        area_names = [item["name"] for item in response.data["areas"]]
+        self.assertIn("North", area_names)
+        self.assertIn("South", area_names)
+
+    def test_areas_post_creates_new_area(self):
+        url = "/api/areas/"
+        response = self.client.post(url, {"name": "East"}, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(Area.objects.filter(name="East").exists())
+
+    def test_areas_post_requires_name(self):
+        url = "/api/areas/"
+        response = self.client.post(url, {}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_aoms_get_endpoint(self):
+        url = "/api/aoms/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 3)
+        self.assertEqual(response.data["aoms"][0]["has_oauth_tokens"], False)
+
+    def test_aoms_post_creates_new_aom(self):
+        url = "/api/aoms/"
+        payload = {
+            "username": "new_aom",
+            "email": "new_aom@example.com",
+            "password": "safe-pass-123",
+            "first_name": "New",
+            "last_name": "Aom",
+            "area_id": self.area_1.id,
+        }
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        created = AOM.objects.get(username="new_aom")
+        self.assertEqual(created.area, self.area_1)
+        self.assertEqual(created.email, "new_aom@example.com")
+
+    def test_aoms_post_requires_fields(self):
+        url = "/api/aoms/"
+        response = self.client.post(url, {"username": "x"}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_aoms_post_rejects_duplicate_username(self):
+        url = "/api/aoms/"
+        payload = {
+            "username": "north_manager",
+            "email": "another@example.com",
+            "password": "safe-pass-123",
+        }
+        response = self.client.post(url, payload, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_aoms_post_invalid_area_returns_404(self):
+        url = "/api/aoms/"
+        payload = {
+            "username": "ghost_aom",
+            "email": "ghost@example.com",
+            "password": "safe-pass-123",
+            "area_id": 99999,
+        }
+        response = self.client.post(url, payload, format="json")
+        self.assertEqual(response.status_code, 404)
+
+    def test_candidates_get_endpoint(self):
+        url = "/api/candidates/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["candidates"][0]["name"], "Candidate One")
+
+    def test_candidates_post_creates_candidate(self):
+        url = "/api/candidates/"
+        payload = {
+            "name": "Candidate Two",
+            "email": "candidate2@example.com",
+            "area_id": self.area_2.id,
+        }
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(Candidate.objects.filter(email="candidate2@example.com").exists())
+
+    def test_candidates_post_requires_fields(self):
+        url = "/api/candidates/"
+        response = self.client.post(url, {"name": "OnlyName"}, format="json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_candidates_post_invalid_area_returns_404(self):
+        url = "/api/candidates/"
+        payload = {
+            "name": "Candidate X",
+            "email": "candidatex@example.com",
+            "area_id": 99999,
+        }
+        response = self.client.post(url, payload, format="json")
+        self.assertEqual(response.status_code, 404)
+
+    def test_analytics_endpoint_returns_expected_counts(self):
+        Interview.objects.create(candidate=self.candidate, status="scheduled")
+        Interview.objects.create(candidate=self.candidate, status="failed")
+
+        url = "/api/analytics/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["summary"]["total_candidates"], 1)
+        self.assertEqual(response.data["summary"]["total_areas"], 2)
+        self.assertEqual(response.data["summary"]["total_aoms"], 3)
+        self.assertEqual(response.data["summary"]["total_interviews"], 2)
+        self.assertEqual(response.data["interview_stats"]["scheduled"], 1)
+        self.assertEqual(response.data["interview_stats"]["failed"], 1)
+        self.assertEqual(response.data["interview_stats"]["success_rate"], 50.0)
+
+    def test_admin_endpoints_require_staff_user(self):
+        non_staff = AOM.objects.create_user(
+            username="regular_user",
+            password="pass1234",
+            email="regular@example.com",
+            area=self.area_1,
+            is_staff=False,
+            is_active=True,
+        )
+        client = APIClient()
+        client.force_authenticate(user=non_staff)
+
+        response = client.get('/api/areas/')
+        self.assertEqual(response.status_code, 403)

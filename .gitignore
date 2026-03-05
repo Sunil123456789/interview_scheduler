@@ -25,6 +25,12 @@ staticfiles
 # environments
 .env
 .env.*
+!.env.example
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
 
 # celery
 celerybeat-schedule

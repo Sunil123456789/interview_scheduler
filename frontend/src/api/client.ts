@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearTokens, getAccessToken, getRefreshToken, setTokens } from '../auth';
 
 // during local development we rely on Vite's proxy; in production set VITE_API_URL
 const API_BASE = import.meta.env.VITE_API_URL || '/api';
@@ -9,6 +10,62 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+api.interceptors.request.use((config) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    const isUnauthorized = error.response?.status === 401;
+    const alreadyRetried = Boolean(originalRequest._retry);
+    const refreshToken = getRefreshToken();
+
+    if (isUnauthorized && !alreadyRetried && refreshToken) {
+      originalRequest._retry = true;
+      try {
+        const refreshResponse = await axios.post(`${API_BASE}/auth/refresh/`, {
+          refresh: refreshToken,
+        });
+
+        const newAccess = refreshResponse.data.access;
+        setTokens(newAccess, refreshToken);
+
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+
+        return api(originalRequest);
+      } catch (refreshError) {
+        clearTokens();
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+export const loginUser = (username: string, password: string) => {
+  return api.post('/auth/login/', { username, password });
+};
+
+export const getCurrentUser = () => {
+  return api.get('/auth/me/');
+};
+
+export const refreshToken = (refresh: string) => {
+  return api.post('/auth/refresh/', { refresh });
+};
 
 export const scheduleInterview = (candidateId: number) => {
   return api.post('/schedule-interview/', { candidate_id: candidateId });
