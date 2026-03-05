@@ -1,4 +1,5 @@
 import datetime
+from django.conf import settings
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -7,12 +8,17 @@ from accounts.models import AOM
 
 def get_credentials(aom: AOM) -> Credentials:
     """Build OAuth2 credentials from stored tokens."""
+    if not aom.google_access_token:
+        raise ValueError(f"AOM {aom.username} has no Google access token")
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise ValueError('Google client credentials are not configured in settings')
+
     creds = Credentials(
         token=aom.google_access_token,
         refresh_token=aom.google_refresh_token,
         token_uri='https://oauth2.googleapis.com/token',
-        client_id='YOUR_CLIENT_ID',       # move to settings/env
-        client_secret='YOUR_CLIENT_SECRET',
+        client_id=settings.GOOGLE_CLIENT_ID,
+        client_secret=settings.GOOGLE_CLIENT_SECRET,
     )
     if creds.expired and creds.refresh_token:
         creds.refresh(Request())

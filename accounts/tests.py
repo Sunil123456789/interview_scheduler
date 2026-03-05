@@ -1,6 +1,8 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.test.utils import override_settings
 from rest_framework.test import APIClient
+from unittest import mock
 
 from .models import Area, Candidate
 
@@ -70,3 +72,32 @@ class AuthEndpointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["username"], "auth_user")
         self.assertTrue(response.data["is_staff"])
+
+    def test_google_oauth_start_requires_auth(self):
+        unauthenticated = APIClient()
+        response = unauthenticated.get('/api/auth/google/start/')
+        self.assertEqual(response.status_code, 401)
+
+    @mock.patch('accounts.views.Flow')
+    @override_settings(
+        GOOGLE_CLIENT_ID='test-client-id',
+        GOOGLE_CLIENT_SECRET='test-client-secret',
+    )
+    def test_google_oauth_start_returns_auth_url(self, mock_flow):
+        login_response = self.client.post(
+            '/api/auth/login/',
+            {'username': 'auth_user', 'password': 'pass1234'},
+            format='json',
+        )
+        access = login_response.data['access']
+        self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {access}')
+
+        flow_instance = mock.Mock()
+        flow_instance.authorization_url.return_value = ('https://accounts.google.com/o/oauth2/v2/auth', 'state')
+        mock_flow.from_client_secrets_file.return_value = flow_instance
+        mock_flow.from_client_config.return_value = flow_instance
+
+        response = self.client.get('/api/auth/google/start/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('auth_url', response.data)

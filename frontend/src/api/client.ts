@@ -67,6 +67,12 @@ export const refreshToken = (refresh: string) => {
   return api.post('/auth/refresh/', { refresh });
 };
 
+export const getGoogleOAuthStartUrl = (aomId?: number) => {
+  return api.get('/auth/google/start/', {
+    params: aomId ? { aom_id: aomId } : undefined,
+  });
+};
+
 export const scheduleInterview = (candidateId: number) => {
   return api.post('/schedule-interview/', { candidate_id: candidateId });
 };
@@ -87,6 +93,20 @@ export const createArea = (name: string) => {
   return api.post('/areas/', { name });
 };
 
+export const updateArea = (
+  areaId: number,
+  data: {
+    name?: string;
+    is_active?: boolean;
+  }
+) => {
+  return api.patch(`/areas/${areaId}/`, data);
+};
+
+export const deleteArea = (areaId: number) => {
+  return api.delete(`/areas/${areaId}/`);
+};
+
 export const getAOMs = () => {
   return api.get('/aoms/');
 };
@@ -102,6 +122,38 @@ export const createAOM = (data: {
   return api.post('/aoms/', data);
 };
 
+export const updateAOM = (
+  aomId: number,
+  data: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    area_id?: number | null;
+    is_active?: boolean;
+  }
+) => {
+  return api.patch(`/aoms/${aomId}/`, data);
+};
+
+export const deleteAOM = (aomId: number) => {
+  return api.delete(`/aoms/${aomId}/`);
+};
+
+export const getUsers = () => {
+  return api.get('/users/');
+};
+
+export const createUser = (data: {
+  username: string;
+  email: string;
+  first_name: string;
+  last_name: string;
+  password: string;
+  role: 'user' | 'admin';
+}) => {
+  return api.post('/users/', data);
+};
+
 export const getCandidates = () => {
   return api.get('/candidates/');
 };
@@ -112,6 +164,22 @@ export const createCandidate = (data: {
   area_id?: number;
 }) => {
   return api.post('/candidates/', data);
+};
+
+export const updateCandidate = (
+  candidateId: number,
+  data: {
+    name?: string;
+    email?: string;
+    area_id?: number | null;
+    is_active?: boolean;
+  }
+) => {
+  return api.patch(`/candidates/${candidateId}/`, data);
+};
+
+export const deleteCandidate = (candidateId: number) => {
+  return api.delete(`/candidates/${candidateId}/`);
 };
 
 export const getAnalytics = () => {

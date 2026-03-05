@@ -9,8 +9,12 @@ def pick_aoms(candidate: Candidate):
     """
     Returns (same_area_aom, diff_area_aom) or raises ValueError.
     """
-    same_area_aoms = list(AOM.objects.filter(area=candidate.area, is_active=True))
-    diff_area_aoms = list(AOM.objects.exclude(area=candidate.area).filter(is_active=True))
+    same_area_aoms = list(
+        AOM.objects.filter(area=candidate.area, is_active=True, is_interviewer=True)
+    )
+    diff_area_aoms = list(
+        AOM.objects.exclude(area=candidate.area).filter(is_active=True, is_interviewer=True)
+    )
 
     if not same_area_aoms:
         raise ValueError(f"No AOM found in candidate's area: {candidate.area}")
@@ -18,6 +22,10 @@ def pick_aoms(candidate: Candidate):
         raise ValueError("No AOM found outside candidate's area")
 
     return random.choice(same_area_aoms), random.choice(diff_area_aoms)
+
+
+def _is_calendar_connected(aom: AOM) -> bool:
+    return bool(aom.google_access_token)
 
 
 def schedule_interview(candidate_id: int) -> Interview:
@@ -36,6 +44,20 @@ def schedule_interview(candidate_id: int) -> Interview:
         same_aom, diff_aom = pick_aoms(candidate)
         interview.same_area_aom = same_aom
         interview.diff_area_aom = diff_aom
+
+        missing = []
+        if not _is_calendar_connected(same_aom):
+            missing.append(same_aom.username)
+        if not _is_calendar_connected(diff_aom):
+            missing.append(diff_aom.username)
+        if missing:
+            interview.status = 'failed'
+            interview.failure_reason = (
+                'Selected AOM(s) are not connected to Google Calendar: '
+                + ', '.join(missing)
+            )
+            interview.save()
+            return interview
 
         slot = find_common_slot(same_aom, diff_aom)
         if not slot:

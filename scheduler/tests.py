@@ -117,6 +117,7 @@ class ScheduleInterviewServiceTests(TestCase):
             area=self.area_same,
             email="same@example.com",
             is_active=True,
+            google_access_token='token-same',
         )
         self.diff_aom = AOM.objects.create_user(
             username="diff",
@@ -124,6 +125,7 @@ class ScheduleInterviewServiceTests(TestCase):
             area=self.area_diff,
             email="diff@example.com",
             is_active=True,
+            google_access_token='token-diff',
         )
 
     @mock.patch("scheduler.services.interview_booker.create_calendar_event")
@@ -249,6 +251,12 @@ class APITests(TestCase):
         response = client.post("/api/schedule-interview/", {"candidate_id": self.candidate.id}, format="json")
         self.assertEqual(response.status_code, 401)
 
+    def test_schedule_endpoint_rejects_disabled_candidate(self):
+        self.candidate.is_active = False
+        self.candidate.save()
+        response = self.client.post("/api/schedule-interview/", {"candidate_id": self.candidate.id}, format="json")
+        self.assertEqual(response.status_code, 400)
+
 
 class AdminFeatureAPITests(TestCase):
     def setUp(self):
@@ -262,6 +270,7 @@ class AdminFeatureAPITests(TestCase):
             area=self.area_1,
             email="hr@example.com",
             is_staff=True,
+            is_interviewer=False,
             is_active=True,
         )
         self.client.force_authenticate(user=self.hr_user)
@@ -322,12 +331,32 @@ class AdminFeatureAPITests(TestCase):
         response = self.client.post(url, {}, format="json")
         self.assertEqual(response.status_code, 400)
 
+    def test_areas_patch_can_update_and_disable(self):
+        url = f"/api/areas/{self.area_1.id}/"
+        payload = {
+            "name": "North Updated",
+            "is_active": False,
+        }
+        response = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.area_1.refresh_from_db()
+        self.assertEqual(self.area_1.name, "North Updated")
+        self.assertFalse(self.area_1.is_active)
+
+    def test_areas_delete_removes_record(self):
+        url = f"/api/areas/{self.area_2.id}/"
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Area.objects.filter(id=self.area_2.id).exists())
+
     def test_aoms_get_endpoint(self):
         url = "/api/aoms/"
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["count"], 3)
+        self.assertEqual(response.data["count"], 2)
         self.assertEqual(response.data["aoms"][0]["has_oauth_tokens"], False)
 
     def test_aoms_post_creates_new_aom(self):
@@ -346,6 +375,32 @@ class AdminFeatureAPITests(TestCase):
         created = AOM.objects.get(username="new_aom")
         self.assertEqual(created.area, self.area_1)
         self.assertEqual(created.email, "new_aom@example.com")
+
+    def test_users_post_can_create_staff_user(self):
+        url = "/api/users/"
+        payload = {
+            "username": "admin_user",
+            "email": "admin_user@example.com",
+            "password": "safe-pass-123",
+            "first_name": "Admin",
+            "last_name": "User",
+            "role": "admin",
+        }
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.data["role"], "admin")
+        created = AOM.objects.get(username="admin_user")
+        self.assertTrue(created.is_staff)
+        self.assertFalse(created.is_interviewer)
+
+    def test_users_get_endpoint(self):
+        url = "/api/users/"
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["users"][0]["username"], "hr_admin")
 
     def test_aoms_post_requires_fields(self):
         url = "/api/aoms/"
@@ -372,6 +427,26 @@ class AdminFeatureAPITests(TestCase):
         }
         response = self.client.post(url, payload, format="json")
         self.assertEqual(response.status_code, 404)
+
+    def test_aoms_patch_can_update_and_disable(self):
+        url = f"/api/aoms/{self.aom_1.id}/"
+        payload = {
+            "first_name": "Updated",
+            "is_active": False,
+        }
+        response = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.aom_1.refresh_from_db()
+        self.assertEqual(self.aom_1.first_name, "Updated")
+        self.assertFalse(self.aom_1.is_active)
+
+    def test_aoms_delete_removes_record(self):
+        url = f"/api/aoms/{self.aom_2.id}/"
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(AOM.objects.filter(id=self.aom_2.id).exists())
 
     def test_candidates_get_endpoint(self):
         url = "/api/candidates/"
@@ -408,6 +483,26 @@ class AdminFeatureAPITests(TestCase):
         response = self.client.post(url, payload, format="json")
         self.assertEqual(response.status_code, 404)
 
+    def test_candidates_patch_can_update_and_disable(self):
+        url = f"/api/candidates/{self.candidate.id}/"
+        payload = {
+            "name": "Candidate Updated",
+            "is_active": False,
+        }
+        response = self.client.patch(url, payload, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.candidate.refresh_from_db()
+        self.assertEqual(self.candidate.name, "Candidate Updated")
+        self.assertFalse(self.candidate.is_active)
+
+    def test_candidates_delete_removes_record(self):
+        url = f"/api/candidates/{self.candidate.id}/"
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(Candidate.objects.filter(id=self.candidate.id).exists())
+
     def test_analytics_endpoint_returns_expected_counts(self):
         Interview.objects.create(candidate=self.candidate, status="scheduled")
         Interview.objects.create(candidate=self.candidate, status="failed")
@@ -418,7 +513,7 @@ class AdminFeatureAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["summary"]["total_candidates"], 1)
         self.assertEqual(response.data["summary"]["total_areas"], 2)
-        self.assertEqual(response.data["summary"]["total_aoms"], 3)
+        self.assertEqual(response.data["summary"]["total_aoms"], 2)
         self.assertEqual(response.data["summary"]["total_interviews"], 2)
         self.assertEqual(response.data["interview_stats"]["scheduled"], 1)
         self.assertEqual(response.data["interview_stats"]["failed"], 1)

@@ -5,6 +5,7 @@ from django.db import models
 
 class Area(models.Model):
     name = models.CharField(max_length=100)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.name
@@ -12,6 +13,8 @@ class Area(models.Model):
 
 class AOM(AbstractUser):
     """Area Operation Manager"""
+    # True: core AOM used by scheduling engine, False: app user account only.
+    is_interviewer = models.BooleanField(default=True)
     area = models.ForeignKey(Area, on_delete=models.SET_NULL, null=True, related_name='aoms')
     google_calendar_id = models.CharField(max_length=255, default='primary')
     # OAuth2 tokens stored here
@@ -27,6 +30,7 @@ class Candidate(models.Model):
     name = models.CharField(max_length=200)
     email = models.EmailField()
     area = models.ForeignKey(Area, on_delete=models.SET_NULL, null=True)
+    is_active = models.BooleanField(default=True)
     applied_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

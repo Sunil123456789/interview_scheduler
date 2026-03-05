@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
 from pathlib import Path
 from datetime import timedelta
 from decouple import config, Csv
@@ -26,6 +27,10 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-producti
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
+
+# OAuthlib requires HTTPS by default. Allow HTTP only for local development.
+if DEBUG:
+    os.environ.setdefault('OAUTHLIB_INSECURE_TRANSPORT', config('OAUTHLIB_INSECURE_TRANSPORT', default='1'))
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
 
@@ -197,3 +202,28 @@ if not DEBUG:
 # Celery / Redis configuration (adjust Redis URL if needed)
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+
+# Google OAuth / Calendar integration
+GOOGLE_OAUTH_CLIENT_SECRETS_FILE = config(
+    'GOOGLE_OAUTH_CLIENT_SECRETS_FILE',
+    default=str(BASE_DIR / 'client_secrets.json'),
+)
+GOOGLE_OAUTH_REDIRECT_URI = config(
+    'GOOGLE_OAUTH_REDIRECT_URI',
+    default='http://localhost:8000/api/auth/google/callback/',
+)
+GOOGLE_OAUTH_SUCCESS_REDIRECT = config(
+    'GOOGLE_OAUTH_SUCCESS_REDIRECT',
+    default='http://localhost:5173/admin?oauth=success',
+)
+GOOGLE_OAUTH_FAILURE_REDIRECT = config(
+    'GOOGLE_OAUTH_FAILURE_REDIRECT',
+    default='http://localhost:5173/admin?oauth=error',
+)
+GOOGLE_OAUTH_STATE_MAX_AGE_SECONDS = config(
+    'GOOGLE_OAUTH_STATE_MAX_AGE_SECONDS',
+    default=600,
+    cast=int,
+)
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
+GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')

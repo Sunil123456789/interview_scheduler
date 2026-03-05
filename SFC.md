@@ -285,3 +285,34 @@ Uses Django REST Framework `APIView`.
   - OAuth tokens are stored in the database on `AOM`.
   - Client credentials must be protected and not hard-coded in production.
 
+### 6. AOM Calendar Connection Flow
+
+- **OAuth Start Endpoint**
+  - `GET /api/auth/google/start/`
+  - Requires JWT authentication.
+  - Optional query param for HR/Admin: `aom_id`.
+  - Returns JSON with `auth_url` to open Google consent.
+
+- **OAuth Callback Endpoint**
+  - `GET /api/auth/google/callback/`
+  - Verifies signed OAuth state and exchanges auth code for tokens.
+  - Stores tokens on target AOM:
+    - `google_access_token`
+    - `google_refresh_token`
+    - `token_expiry`
+
+- **Admin UI Support**
+  - In Admin -> AOMs tab, each AOM has a `Connect Calendar` action.
+  - HR/Admin can trigger OAuth for a newly created AOM.
+
+- **Scheduling Guardrail**
+  - If selected AOMs are missing access token, scheduling fails early with clear `failure_reason`.
+
+- **Required Environment Variables**
+  - `GOOGLE_OAUTH_CLIENT_SECRETS_FILE`
+  - `GOOGLE_OAUTH_REDIRECT_URI`
+  - `GOOGLE_OAUTH_SUCCESS_REDIRECT`
+  - `GOOGLE_OAUTH_FAILURE_REDIRECT`
+  - `GOOGLE_CLIENT_ID`
+  - `GOOGLE_CLIENT_SECRET`
+
