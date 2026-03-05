@@ -3,6 +3,7 @@ from unittest import mock
 
 from django.test import TestCase
 from django.utils import timezone
+from googleapiclient.errors import HttpError
 from rest_framework.test import APIClient
 
 from accounts.models import Area, AOM, Candidate
@@ -35,12 +36,13 @@ class SlotFinderTests(TestCase):
         start = datetime.datetime(2026, 3, 3, 9, 0, 0)
 
         slot = slot_finder.find_common_slot(self.aom1, self.aom2, search_from=start)
+        expected_start = timezone.make_aware(start, timezone.get_current_timezone())
 
         self.assertIsNotNone(slot)
-        self.assertEqual(slot["start"], start)
+        self.assertEqual(slot["start"], expected_start)
         self.assertEqual(
             slot["end"],
-            start + datetime.timedelta(hours=1),
+            expected_start + datetime.timedelta(hours=1),
         )
 
 
@@ -189,6 +191,30 @@ class CeleryTaskTests(TestCase):
                 "meet_link": "https://meet.google.com/test",
             },
         )
+
+    @mock.patch("scheduler.tasks.schedule_interview")
+    @mock.patch("scheduler.tasks.schedule_interview_task.retry")
+    def test_schedule_interview_task_does_not_retry_google_4xx(self, mock_retry, mock_schedule):
+        response = mock.Mock()
+        response.status = 403
+        mock_schedule.side_effect = HttpError(response, b'{"error":"accessNotConfigured"}')
+
+        result = schedule_interview_task(1)
+
+        self.assertEqual(result["status"], "failed")
+        self.assertTrue(result["non_retryable"])
+        mock_retry.assert_not_called()
+
+    @mock.patch("scheduler.tasks.schedule_interview")
+    @mock.patch("scheduler.tasks.schedule_interview_task.retry")
+    def test_schedule_interview_task_retries_generic_exception(self, mock_retry, mock_schedule):
+        mock_schedule.side_effect = RuntimeError("temporary issue")
+        mock_retry.side_effect = Exception("retry called")
+
+        with self.assertRaises(Exception):
+            schedule_interview_task(1)
+
+        mock_retry.assert_called_once()
 
 
 class APITests(TestCase):

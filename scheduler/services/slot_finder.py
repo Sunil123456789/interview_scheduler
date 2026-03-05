@@ -1,11 +1,12 @@
 import datetime
 from typing import Optional
+from django.utils import timezone
 from accounts.models import AOM
 from .google_calendar import get_busy_slots
 
 INTERVIEW_DURATION = datetime.timedelta(hours=1)
-WORK_START_HOUR = 9   # 9 AM UTC
-WORK_END_HOUR = 18    # 6 PM UTC
+WORK_START_HOUR = 9   # 9 AM local timezone (IST)
+WORK_END_HOUR = 18    # 6 PM local timezone (IST)
 SLOT_STEP = datetime.timedelta(minutes=30)
 SEARCH_DAYS = 7
 
@@ -28,7 +29,11 @@ def find_common_slot(
     Returns {'start': datetime, 'end': datetime} or None.
     """
     if search_from is None:
-        search_from = datetime.datetime.utcnow().replace(minute=0, second=0, microsecond=0)
+        search_from = timezone.localtime(timezone.now()).replace(minute=0, second=0, microsecond=0)
+    elif timezone.is_naive(search_from):
+        search_from = timezone.make_aware(search_from, timezone.get_current_timezone())
+    else:
+        search_from = timezone.localtime(search_from)
 
     time_max = search_from + datetime.timedelta(days=SEARCH_DAYS)
 

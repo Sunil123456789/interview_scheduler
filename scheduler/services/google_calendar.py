@@ -1,5 +1,6 @@
 import datetime
 from django.conf import settings
+from django.utils import timezone
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
@@ -37,9 +38,14 @@ def get_busy_slots(aom: AOM, time_min: datetime.datetime, time_max: datetime.dat
     creds = get_credentials(aom)
     service = build('calendar', 'v3', credentials=creds)
 
+    if timezone.is_naive(time_min):
+        time_min = timezone.make_aware(time_min, timezone.get_current_timezone())
+    if timezone.is_naive(time_max):
+        time_max = timezone.make_aware(time_max, timezone.get_current_timezone())
+
     body = {
-        "timeMin": time_min.isoformat() + 'Z',
-        "timeMax": time_max.isoformat() + 'Z',
+        "timeMin": time_min.isoformat(),
+        "timeMax": time_max.isoformat(),
         "items": [{"id": aom.google_calendar_id}]
     }
     result = service.freebusy().query(body=body).execute()
@@ -47,8 +53,8 @@ def get_busy_slots(aom: AOM, time_min: datetime.datetime, time_max: datetime.dat
 
     return [
         {
-            'start': datetime.datetime.fromisoformat(b['start'].replace('Z', '')),
-            'end':   datetime.datetime.fromisoformat(b['end'].replace('Z', '')),
+            'start': datetime.datetime.fromisoformat(b['start'].replace('Z', '+00:00')),
+            'end':   datetime.datetime.fromisoformat(b['end'].replace('Z', '+00:00')),
         }
         for b in busy_list
     ]
@@ -66,11 +72,16 @@ def create_calendar_event(
     creds = get_credentials(aom1)
     service = build('calendar', 'v3', credentials=creds)
 
+    if timezone.is_naive(start):
+        start = timezone.make_aware(start, timezone.get_current_timezone())
+    if timezone.is_naive(end):
+        end = timezone.make_aware(end, timezone.get_current_timezone())
+
     event = {
         'summary': summary,
         'description': f'Interview scheduled via Interview Scheduler',
-        'start': {'dateTime': start.isoformat() + 'Z', 'timeZone': 'UTC'},
-        'end':   {'dateTime': end.isoformat() + 'Z',   'timeZone': 'UTC'},
+        'start': {'dateTime': start.isoformat(), 'timeZone': settings.TIME_ZONE},
+        'end':   {'dateTime': end.isoformat(),   'timeZone': settings.TIME_ZONE},
         'attendees': [
             {'email': aom1.email},
             {'email': aom2.email},
