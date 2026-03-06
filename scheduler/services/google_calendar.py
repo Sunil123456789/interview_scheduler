@@ -36,7 +36,7 @@ def get_busy_slots(aom: AOM, time_min: datetime.datetime, time_max: datetime.dat
     Each item: {'start': datetime, 'end': datetime}
     """
     creds = get_credentials(aom)
-    service = build('calendar', 'v3', credentials=creds)
+    service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
 
     if timezone.is_naive(time_min):
         time_min = timezone.make_aware(time_min, timezone.get_current_timezone())
@@ -70,7 +70,7 @@ def create_calendar_event(
 ) -> dict:
     """Creates event on aom1's calendar, invites aom2 + candidate."""
     creds = get_credentials(aom1)
-    service = build('calendar', 'v3', credentials=creds)
+    service = build('calendar', 'v3', credentials=creds, cache_discovery=False)
 
     if timezone.is_naive(start):
         start = timezone.make_aware(start, timezone.get_current_timezone())
